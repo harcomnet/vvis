@@ -1,46 +1,290 @@
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#174f86">
-<title>VVIS - Vihara Pusat</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VVIS - Scan Kendaraan</title>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
 <style>
-*{box-sizing:border-box}body{margin:0;padding:14px;font-family:Arial,sans-serif;background:#f1f4f8;color:#263445}.container{max-width:480px;margin:12px auto;background:#fff;padding:22px 18px;border-radius:18px;box-shadow:0 4px 18px #00000012;min-height:90vh}.header{text-align:center;margin-bottom:24px}.logo{font-size:48px}h1{font-size:30px;color:#174f86;margin:4px}h2{font-size:23px;color:#174f86;text-align:center}p{font-size:16px;line-height:1.55;color:#667085}label{display:block;font-size:18px;font-weight:bold;margin:18px 0 8px}input{width:100%;padding:17px;font-size:19px;border:2px solid #ccd4df;border-radius:10px;background:#fff}input:focus{outline:none;border-color:#1769aa}button{width:100%;padding:18px;margin-top:16px;border:0;border-radius:12px;background:#1769aa;color:white;font-size:20px;font-weight:bold;cursor:pointer}button:disabled{opacity:.6}.green{background:#16834a}.gray{background:#667085}.link{display:block;text-align:center;margin-top:22px;color:#1769aa;font-size:17px;font-weight:bold;cursor:pointer}.hidden{display:none!important}.message{display:none;margin-top:16px;padding:13px;border-radius:9px;font-size:15px;line-height:1.5}.error{display:block;background:#fde8e8;color:#a32323}.success{display:block;background:#e5f5eb;color:#176b39}.welcome{text-align:center;padding:12px 0 20px}.mainbtn{min-height:120px;font-size:22px;line-height:1.4}.mainbtn span{display:block;font-size:40px}.hint,.note{font-size:14px;color:#667085;margin-top:7px}.camera{width:100%;min-height:230px;background:#17212f;border-radius:12px;overflow:hidden;margin-top:14px;display:flex;align-items:center;justify-content:center;position:relative}.camera video,.camera img{width:100%;max-height:430px;object-fit:contain;display:none}.placeholder{color:white;text-align:center;padding:24px;line-height:1.6}.guide{position:absolute;width:84%;height:30%;border:3px solid #35d07f;border-radius:8px;display:none;pointer-events:none}.footer{text-align:center;margin-top:30px;font-size:12px;color:#98a2b3}
+*{box-sizing:border-box}
+body{
+  margin:0;padding:16px;
+  font-family:Arial,sans-serif;
+  background:#f1f4f8;color:#263445
+}
+.container{
+  max-width:480px;margin:15px auto;
+  background:white;padding:22px 18px;
+  border-radius:18px;min-height:90vh;
+  box-shadow:0 4px 18px #00000012
+}
+h1{text-align:center;color:#174f86;font-size:28px}
+h2{text-align:center;color:#174f86}
+p{font-size:16px;line-height:1.5;color:#667085}
+button{
+  width:100%;padding:18px;margin-top:15px;
+  border:0;border-radius:12px;
+  background:#1769aa;color:white;
+  font-size:19px;font-weight:bold
+}
+button:disabled{opacity:.5}
+.green{background:#16834a}
+.gray{background:#667085}
+.camera{
+  width:100%;min-height:240px;
+  background:#17212f;border-radius:12px;
+  overflow:hidden;position:relative;
+  display:flex;align-items:center;
+  justify-content:center;margin-top:18px
+}
+video,img{width:100%;max-height:420px;object-fit:contain}
+video{display:none}
+#photo{display:none}
+.guide{
+  position:absolute;width:88%;height:32%;
+  border:3px solid #35d07f;border-radius:8px;
+  pointer-events:none
+}
+label{
+  display:block;font-weight:bold;
+  font-size:17px;margin-top:22px
+}
+input{
+  width:100%;padding:17px;
+  border:2px solid #ccd4df;
+  border-radius:10px;font-size:22px;
+  margin-top:8px;text-transform:uppercase
+}
+.status{
+  margin-top:15px;padding:14px;
+  border-radius:9px;background:#eef3f8;
+  line-height:1.5;font-size:15px
+}
+.footer{text-align:center;margin-top:30px;font-size:12px;color:#98a2b3}
 </style>
 </head>
+
 <body>
 <div class="container">
- <div class="header"><div class="logo">🚗</div><h1>VVIS</h1><div>SISTEM IDENTIFIKASI KENDARAAN<br>VIHARA PUSAT</div></div>
- <section id="loginPage"><h2>LOGIN PETUGAS</h2><label>USERNAME</label><input id="username" autocomplete="username" placeholder="Masukkan username"><label>PASSWORD</label><input id="password" type="password" autocomplete="current-password" placeholder="Masukkan password"><button id="loginButton" onclick="login()">MASUK</button><span class="link" onclick="showPage('resetPage')">LUPA PASSWORD?</span></section>
- <section id="changePage" class="hidden"><h2>GANTI PASSWORD</h2><p>Silakan buat password baru untuk melanjutkan.</p><label>PASSWORD LAMA</label><input id="oldPassword" type="password"><label>PASSWORD BARU</label><input id="newPassword" type="password" placeholder="Minimal 6 karakter"><label>ULANGI PASSWORD BARU</label><input id="confirmPassword" type="password"><button id="changeButton" class="green" onclick="changePassword()">SIMPAN PASSWORD BARU</button></section>
- <section id="resetPage" class="hidden"><h2>LUPA PASSWORD</h2><p>Masukkan username dan nomor WhatsApp yang terdaftar.</p><label>USERNAME</label><input id="resetUsername"><label>NOMOR WHATSAPP</label><input id="resetWhatsapp" type="tel" placeholder="Contoh: 081234567890"><button id="resetButton" class="green" onclick="resetPassword()">RESET PASSWORD</button><span class="link" onclick="showPage('loginPage')">KEMBALI KE LOGIN</span></section>
- <section id="mainPage" class="hidden"><div class="welcome"><div class="logo">🚗</div><h2>SELAMAT DATANG</h2><h2 id="namaPetugas"></h2><p>Sistem Identifikasi Kendaraan<br>Vihara Pusat</p></div><button class="mainbtn" onclick="openScan()"><span>📷</span>SCAN KENDARAAN</button><button class="mainbtn green" onclick="openRegister()"><span>🚘</span>DAFTAR KENDARAAN</button></section>
- <section id="scanPage" class="hidden"><h2>SCAN KENDARAAN</h2><p style="text-align:center">Arahkan kamera ke pelat nomor mobil. Pastikan tulisan terlihat jelas.</p><div class="camera"><div id="cameraPlaceholder" class="placeholder">📷<br>Kamera belum diaktifkan.<br>Tekan MULAI KAMERA.</div><video id="cameraVideo" autoplay playsinline muted></video><img id="capturedPhoto" alt="Foto pelat nomor"><div id="cameraGuide" class="guide"></div></div><canvas id="photoCanvas" class="hidden"></canvas><button id="startCameraButton" onclick="startCamera()">MULAI KAMERA</button><button id="captureButton" class="green hidden" onclick="capturePhoto()">AMBIL FOTO</button><button id="retakeButton" class="gray hidden" onclick="retakePhoto()">FOTO ULANG</button><p id="cameraStatus" class="note">Kamera hanya aktif setelah tombol ditekan.</p><label>NOMOR POLISI</label><input id="scanPlate" placeholder="Masukkan / koreksi nomor polisi" autocapitalize="characters"><button id="findButton" class="green" onclick="findVehicle()">CARI PEMILIK MOBIL</button><div id="vehicleResult" class="hidden"></div><button class="gray" onclick="showPage('mainPage')">KEMBALI KE MENU UTAMA</button></section>
- <section id="registerPage" class="hidden"><h2>DAFTAR MOBIL</h2><p>Masukkan data mobil yang akan didaftarkan.</p><label>NOMOR POLISI</label><input id="noPolisi" maxlength="15" autocapitalize="characters" placeholder="Contoh: B 1234 ABC"><div class="hint">Contoh: B 1234 ABC</div><label>NAMA PEMILIK</label><input id="namaPemilik" maxlength="100" placeholder="Nama pemilik mobil"><label>NOMOR WHATSAPP</label><input id="noWhatsapp" type="tel" maxlength="20" placeholder="Contoh: 081234567890"><div class="hint">Gunakan nomor WhatsApp yang bisa dihubungi.</div><label>MEREK DAN WARNA MOBIL</label><input id="merekWarna" maxlength="100" placeholder="Contoh: Toyota Avanza Hitam"><button id="saveButton" class="green" onclick="saveVehicle()">SIMPAN DATA MOBIL</button><button class="gray" onclick="showPage('mainPage')">KEMBALI KE MENU UTAMA</button></section>
- <div id="message" class="message"></div><div class="footer">VVIS - VIHARA PUSAT<br>SISTEM MANAJEMEN PERPARKIRAN</div>
+
+<h1>🚗 VVIS</h1>
+<h2>SCAN KENDARAAN</h2>
+
+<p style="text-align:center">
+Arahkan kamera ke nomor polisi mobil.
+Pastikan tulisan terlihat jelas.
+</p>
+
+<div class="camera">
+  <div id="placeholder" style="color:white;text-align:center;padding:20px">
+    📷<br><br>KAMERA BELUM AKTIF
+  </div>
+  <video id="camera" autoplay playsinline muted></video>
+  <img id="photo" alt="Foto kendaraan">
+  <div class="guide" id="guide" style="display:none"></div>
 </div>
-<iframe name="vvisApiFrame" id="vvisApiFrame" class="hidden" title="VVIS API"></iframe>
+
+<canvas id="canvas" style="display:none"></canvas>
+
+<button id="startBtn" onclick="startCamera()">MULAI KAMERA</button>
+<button id="captureBtn" class="green" style="display:none" onclick="capturePhoto()">AMBIL FOTO</button>
+<button id="retakeBtn" class="gray" style="display:none" onclick="retakePhoto()">FOTO ULANG</button>
+
+<div class="status" id="status">
+Kamera belum diaktifkan.
+</div>
+
+<button id="ocrBtn" class="green" style="display:none" onclick="readPlate()">
+BACA NOMOR POLISI
+</button>
+
+<label>HASIL NOMOR POLISI</label>
+<input id="plate" placeholder="Contoh: B 1828 HOR">
+
+<p>Periksa dan koreksi nomor polisi jika hasil pembacaan belum tepat.</p>
+
+<button id="sendBtn" onclick="sendToVVIS()">
+KIRIM KE VVIS
+</button>
+
+<button class="gray" onclick="window.close()">
+TUTUP KAMERA
+</button>
+
+<div class="footer">
+VVIS - VIHARA PUSAT<br>
+SISTEM IDENTIFIKASI KENDARAAN
+</div>
+
+</div>
+
 <script>
-const API_URL='https://script.google.com/macros/s/AKfycbw0BIQiPmC3Q1ktsjQYXZzCMVTuH5P5EpAh-ys8iaXZ5RFjP730pN6ZRY-1VKBTfZSQUw/exec';
-const API_ORIGIN='https://harcomnet.github.io';
-let usernameAktif='',tokenSesi='',cameraStream=null,requestCounter=0,pendingRequests={};
-function api(action,data){return new Promise((resolve,reject)=>{const requestId='vvis_'+Date.now()+'_'+(++requestCounter);pendingRequests[requestId]={resolve,reject};const form=document.createElement('form');form.method='POST';form.action=API_URL;form.target='vvisApiFrame';form.style.display='none';[['action',action],['data',JSON.stringify(data||{})],['requestId',requestId]].forEach(([name,value])=>{const input=document.createElement('input');input.type='hidden';input.name=name;input.value=value;form.appendChild(input)});document.body.appendChild(form);form.submit();form.remove();setTimeout(()=>{if(pendingRequests[requestId]){delete pendingRequests[requestId];reject(new Error('Server tidak memberi jawaban. Periksa deployment Apps Script dan coba lagi.'))}},25000)})}
-window.addEventListener('message',event=>{if(event.source!==document.getElementById('vvisApiFrame').contentWindow)return;if(event.origin!==API_ORIGIN&&!event.origin.endsWith('.googleusercontent.com'))return;const msg=event.data||{};const pending=pendingRequests[msg.requestId];if(!pending)return;delete pendingRequests[msg.requestId];pending.resolve(msg.result)});
-function showMessage(text,type){const el=document.getElementById('message');el.textContent=text;el.className='message '+type}function clearMessage(){const el=document.getElementById('message');el.textContent='';el.className='message'}
-function showPage(id){stopCamera();['loginPage','changePage','resetPage','mainPage','scanPage','registerPage'].forEach(x=>document.getElementById(x).classList.add('hidden'));document.getElementById(id).classList.remove('hidden');clearMessage()}
-function sessionCheck(){if(!tokenSesi){usernameAktif='';showPage('loginPage');showMessage('Sesi login tidak tersedia. Silakan login kembali.','error');return false}return true}
-async function login(){clearMessage();const username=document.getElementById('username').value.trim(),password=document.getElementById('password').value;if(!username||!password){showMessage('Username dan password wajib diisi.','error');return}const b=document.getElementById('loginButton');b.disabled=true;b.textContent='MEMERIKSA...';try{const r=await api('login',{username,password});if(!r||!r.sukses){showMessage(r?.pesan||'Login gagal.','error');return}usernameAktif=r.username;if(r.wajibGantiPassword){showPage('changePage');showMessage('Silakan ganti password sebelum melanjutkan.','success');return}tokenSesi=r.token||'';document.getElementById('namaPetugas').textContent=r.nama||'';showPage('mainPage')}catch(e){showMessage(e.message,'error')}finally{b.disabled=false;b.textContent='MASUK'}}
-async function changePassword(){clearMessage();const lama=oldPassword.value,baru=newPassword.value,ulang=confirmPassword.value;if(!lama||!baru||!ulang){showMessage('Semua kolom wajib diisi.','error');return}if(baru.length<6||baru!==ulang){showMessage(baru.length<6?'Password baru minimal 6 karakter.':'Password baru dan pengulangan tidak sama.','error');return}const b=document.getElementById('changeButton');b.disabled=true;b.textContent='MENYIMPAN...';try{const r=await api('changePassword',{username:usernameAktif,passwordLama:lama,passwordBaru:baru});if(!r.sukses){showMessage(r.pesan,'error');return}document.getElementById('password').value='';oldPassword.value='';newPassword.value='';confirmPassword.value='';showPage('loginPage');showMessage('Password berhasil diganti. Silakan login kembali.','success')}catch(e){showMessage(e.message,'error')}finally{b.disabled=false;b.textContent='SIMPAN PASSWORD BARU'}}
-async function resetPassword(){clearMessage();const username=resetUsername.value.trim(),whatsapp=resetWhatsapp.value.trim();if(!username||!whatsapp){showMessage('Username dan nomor WhatsApp wajib diisi.','error');return}const b=document.getElementById('resetButton');b.disabled=true;b.textContent='MEMPROSES...';try{const r=await api('resetPassword',{username,whatsapp});if(!r.sukses){showMessage(r.pesan,'error');return}document.getElementById('username').value=username;document.getElementById('password').value='';showPage('loginPage');showMessage('Password berhasil direset menjadi 123. Silakan login dan ganti password.','success')}catch(e){showMessage(e.message,'error')}finally{b.disabled=false;b.textContent='RESET PASSWORD'}}
-function openScan(){if(!sessionCheck())return;document.getElementById('scanPlate').value='';document.getElementById('vehicleResult').classList.add('hidden');resetCameraUI();showPage('scanPage')}function openRegister(){if(!sessionCheck())return;showPage('registerPage')}
-function resetCameraUI(){cameraVideo.style.display='none';capturedPhoto.style.display='none';cameraPlaceholder.style.display='block';cameraGuide.style.display='none';startCameraButton.classList.remove('hidden');captureButton.classList.add('hidden');retakeButton.classList.add('hidden');cameraStatus.textContent='Kamera hanya aktif setelah tombol ditekan.'}
-async function startCamera(){clearMessage();if(!navigator.mediaDevices?.getUserMedia){showMessage('Browser tidak mendukung kamera. Gunakan Chrome melalui HTTPS.','error');return}const b=startCameraButton;b.disabled=true;b.textContent='MEMBUKA KAMERA...';try{stopCamera();cameraStream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});cameraVideo.srcObject=cameraStream;cameraVideo.style.display='block';cameraPlaceholder.style.display='none';cameraGuide.style.display='block';await cameraVideo.play();b.classList.add('hidden');captureButton.classList.remove('hidden');cameraStatus.textContent='Arahkan kotak hijau ke pelat nomor lalu tekan AMBIL FOTO.'}catch(e){showMessage('Kamera tidak dapat dibuka. Periksa izin kamera Chrome. '+e.message,'error');stopCamera()}finally{b.disabled=false;b.textContent='MULAI KAMERA'}}
-function capturePhoto(){if(!cameraStream||!cameraVideo.videoWidth){showMessage('Kamera belum siap. Tunggu sebentar.','error');return}photoCanvas.width=cameraVideo.videoWidth;photoCanvas.height=cameraVideo.videoHeight;photoCanvas.getContext('2d').drawImage(cameraVideo,0,0);capturedPhoto.src=photoCanvas.toDataURL('image/jpeg',.9);capturedPhoto.style.display='block';cameraVideo.style.display='none';cameraGuide.style.display='none';captureButton.classList.add('hidden');retakeButton.classList.remove('hidden');cameraStatus.textContent='Foto berhasil diambil. Masukkan atau koreksi nomor polisi di bawah.';stopCamera();showMessage('Foto tersimpan sementara di layar. OCR otomatis belum diaktifkan pada tahap ini.','success')}
-function retakePhoto(){capturedPhoto.style.display='none';cameraPlaceholder.style.display='block';retakeButton.classList.add('hidden');startCameraButton.classList.remove('hidden');cameraStatus.textContent='Tekan MULAI KAMERA untuk mengambil foto ulang.'}
-function stopCamera(){if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null}const v=document.getElementById('cameraVideo');if(v){v.pause();v.srcObject=null}}
-async function saveVehicle(){clearMessage();if(!sessionCheck())return;const kendaraan={noPolisi:noPolisi.value.trim().toUpperCase(),namaPemilik:namaPemilik.value.trim(),noWhatsapp:noWhatsapp.value.trim(),merekWarna:merekWarna.value.trim()};if(Object.values(kendaraan).some(v=>!v)){showMessage('Semua kolom wajib diisi.','error');return}const b=document.getElementById('saveButton');b.disabled=true;b.textContent='MENYIMPAN...';try{const r=await api('saveVehicle',{token:tokenSesi,kendaraan});if(r.sesiHabis){tokenSesi='';sessionCheck();return}if(!r.sukses){showMessage(r.pesan,'error');return}noPolisi.value='';namaPemilik.value='';noWhatsapp.value='';merekWarna.value='';showMessage('BERHASIL! Mobil '+r.noPolisi+' atas nama '+r.namaPemilik+' sudah terdaftar.','success')}catch(e){showMessage(e.message,'error')}finally{b.disabled=false;b.textContent='SIMPAN DATA MOBIL'}}
-async function findVehicle(){clearMessage();if(!sessionCheck())return;const plate=scanPlate.value.trim();if(!plate){showMessage('Masukkan nomor polisi terlebih dahulu.','error');return}const b=document.getElementById('findButton');b.disabled=true;b.textContent='MENCARI...';try{const r=await api('findVehicle',{token:tokenSesi,nomorPolisi:plate});if(r.sesiHabis){tokenSesi='';sessionCheck();return}if(!r.sukses||!r.ditemukan){showMessage(r.pesan||'Kendaraan tidak ditemukan.','error');vehicleResult.classList.add('hidden');return}vehicleResult.classList.remove('hidden');vehicleResult.style.cssText='margin-top:16px;padding:16px;border:2px solid #16834a;border-radius:12px;line-height:1.7';const wa=String(r.noWhatsapp||'').replace(/\D/g,'');const intl=wa.startsWith('0')?'62'+wa.slice(1):wa;vehicleResult.innerHTML='';const rows=[['NOMOR POLISI',r.noPolisi],['NAMA PEMILIK',r.namaPemilik],['MEREK / WARNA',r.merekWarna],['WHATSAPP',r.noWhatsapp]];rows.forEach(([k,v])=>{const d=document.createElement('div');d.textContent=k+': '+(v||'-');vehicleResult.appendChild(d)});const a=document.createElement('a');a.href='https://wa.me/'+intl+'?text='+encodeURIComponent('Permisi, mohon bantu memindahkan kendaraan '+r.noPolisi+'. Terima kasih.');a.target='_blank';a.rel='noopener';a.textContent='HUBUNGI PEMILIK VIA WHATSAPP';a.style.cssText='display:block;margin-top:14px;padding:15px;background:#16834a;color:white;text-align:center;text-decoration:none;font-weight:bold;border-radius:10px';vehicleResult.appendChild(a)}catch(e){showMessage(e.message,'error')}finally{b.disabled=false;b.textContent='CARI PEMILIK MOBIL'}}
-document.addEventListener('DOMContentLoaded',()=>{noPolisi.addEventListener('input',()=>{const p=noPolisi.selectionStart;noPolisi.value=noPolisi.value.toUpperCase();try{noPolisi.setSelectionRange(p,p)}catch(e){}});scanPlate.addEventListener('input',()=>{const p=scanPlate.selectionStart;scanPlate.value=scanPlate.value.toUpperCase();try{scanPlate.setSelectionRange(p,p)}catch(e){}})});window.addEventListener('pagehide',stopCamera);
+let stream=null;
+let fotoTersedia=false;
+
+const camera=document.getElementById("camera");
+const photo=document.getElementById("photo");
+const canvas=document.getElementById("canvas");
+const statusBox=document.getElementById("status");
+
+function status(teks){
+  statusBox.textContent=teks;
+}
+
+async function startCamera(){
+  const btn=document.getElementById("startBtn");
+  btn.disabled=true;
+  btn.textContent="MEMBUKA KAMERA...";
+
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({
+      audio:false,
+      video:{
+        facingMode:{ideal:"environment"},
+        width:{ideal:1280},
+        height:{ideal:720}
+      }
+    });
+
+    camera.srcObject=stream;
+    await camera.play();
+
+    camera.style.display="block";
+    document.getElementById("placeholder").style.display="none";
+    document.getElementById("guide").style.display="block";
+
+    btn.style.display="none";
+    document.getElementById("captureBtn").style.display="block";
+
+    status("Kamera aktif. Arahkan kotak hijau ke nomor polisi.");
+  }catch(e){
+    status("Kamera gagal dibuka. Izinkan akses kamera pada Chrome. "+e.message);
+    btn.disabled=false;
+    btn.textContent="MULAI KAMERA";
+  }
+}
+
+function capturePhoto(){
+  if(!camera.videoWidth){
+    status("Kamera belum siap. Tunggu sebentar.");
+    return;
+  }
+
+  canvas.width=camera.videoWidth;
+  canvas.height=camera.videoHeight;
+
+  canvas.getContext("2d").drawImage(
+    camera,0,0,canvas.width,canvas.height
+  );
+
+  photo.src=canvas.toDataURL("image/jpeg",0.95);
+  photo.style.display="block";
+  camera.style.display="none";
+
+  stopCamera();
+
+  fotoTersedia=true;
+
+  document.getElementById("guide").style.display="none";
+  document.getElementById("captureBtn").style.display="none";
+  document.getElementById("retakeBtn").style.display="block";
+  document.getElementById("ocrBtn").style.display="block";
+
+  status("Foto berhasil diambil. Tekan BACA NOMOR POLISI.");
+}
+
+function retakePhoto(){
+  fotoTersedia=false;
+  photo.style.display="none";
+  document.getElementById("retakeBtn").style.display="none";
+  document.getElementById("ocrBtn").style.display="none";
+  document.getElementById("startBtn").style.display="block";
+  document.getElementById("startBtn").disabled=false;
+  document.getElementById("startBtn").textContent="MULAI KAMERA";
+  document.getElementById("plate").value="";
+  document.getElementById("placeholder").style.display="block";
+  status("Silakan ambil foto ulang.");
+}
+
+async function readPlate(){
+  if(!fotoTersedia)return;
+
+  const btn=document.getElementById("ocrBtn");
+  btn.disabled=true;
+  btn.textContent="SEDANG MEMBACA...";
+
+  status("Sedang membaca tulisan pada foto. Mohon tunggu...");
+
+  try{
+    const hasil=await Tesseract.recognize(
+      photo.src,
+      "eng",
+      {
+        logger:m=>{
+          if(m.status==="recognizing text"){
+            status("Pembacaan nomor polisi: "+
+              Math.round(m.progress*100)+"%");
+          }
+        },
+        tessedit_pageseg_mode:7
+      }
+    );
+
+    const teks=hasil.data.text
+      .toUpperCase()
+      .replace(/[^A-Z0-9 ]/g," ")
+      .replace(/\s+/g," ")
+      .trim();
+
+    document.getElementById("plate").value=teks;
+
+    if(teks){
+      status("Pembacaan selesai. Periksa hasilnya, lalu koreksi jika perlu.");
+    }else{
+      status("Tulisan belum terbaca. Silakan foto ulang atau ketik nomor polisi secara manual.");
+    }
+
+  }catch(e){
+    status("OCR gagal membaca foto. Silakan ketik nomor polisi secara manual.");
+  }
+
+  btn.disabled=false;
+  btn.textContent="BACA NOMOR POLISI";
+}
+
+function sendToVVIS(){
+  const plat=document.getElementById("plate").value.trim().toUpperCase();
+
+  if(!plat){
+    status("Nomor polisi belum diisi.");
+    return;
+  }
+
+  if(!window.opener || window.opener.closed){
+    status("Aplikasi VVIS utama tidak ditemukan. Buka kamera dari menu VVIS.");
+    return;
+  }
+
+  window.opener.postMessage({
+    type:"VVIS_SCAN_RESULT",
+    nomorPolisi:plat
+  },"*");
+
+  status("Nomor polisi sudah dikirim ke aplikasi VVIS. Silakan kembali ke halaman utama.");
+}
+
+function stopCamera(){
+  if(stream){
+    stream.getTracks().forEach(track=>track.stop());
+    stream=null;
+  }
+  camera.srcObject=null;
+}
+
+window.addEventListener("pagehide",stopCamera);
 </script>
-</body></html>
+</body>
+</html>
