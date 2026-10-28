@@ -44,8 +44,11 @@ video,img{width:100%;max-height:420px;object-fit:contain}
 video{display:none}
 #photo{display:none}
 .guide{
-  position:absolute;width:88%;height:32%;
-  border:3px solid #35d07f;border-radius:8px;
+  position:absolute;
+  top:34%;left:6%;
+  width:88%;height:32%;
+  border:3px solid #35d07f;
+  border-radius:8px;
   pointer-events:none
 }
 label{
@@ -63,7 +66,10 @@ input{
   border-radius:9px;background:#eef3f8;
   line-height:1.5;font-size:15px
 }
-.footer{text-align:center;margin-top:30px;font-size:12px;color:#98a2b3}
+.footer{
+  text-align:center;margin-top:30px;
+  font-size:12px;color:#98a2b3
+}
 </style>
 </head>
 
@@ -75,36 +81,56 @@ input{
 
 <p style="text-align:center">
 Arahkan kamera ke nomor polisi mobil.
-Pastikan tulisan terlihat jelas.
+Pastikan seluruh tulisan plat berada di dalam kotak hijau.
 </p>
 
 <div class="camera">
+
   <div id="placeholder" style="color:white;text-align:center;padding:20px">
     📷<br><br>KAMERA BELUM AKTIF
   </div>
+
   <video id="camera" autoplay playsinline muted></video>
-  <img id="photo" alt="Foto kendaraan">
+
+  <img id="photo" alt="Area plat nomor">
+
   <div class="guide" id="guide" style="display:none"></div>
+
 </div>
 
 <canvas id="canvas" style="display:none"></canvas>
 
-<button id="startBtn" onclick="startCamera()">MULAI KAMERA</button>
-<button id="captureBtn" class="green" style="display:none" onclick="capturePhoto()">AMBIL FOTO</button>
-<button id="retakeBtn" class="gray" style="display:none" onclick="retakePhoto()">FOTO ULANG</button>
+<button id="startBtn" onclick="startCamera()">
+MULAI KAMERA
+</button>
+
+<button id="captureBtn" class="green"
+style="display:none" onclick="capturePhoto()">
+AMBIL FOTO
+</button>
+
+<button id="retakeBtn" class="gray"
+style="display:none" onclick="retakePhoto()">
+FOTO ULANG
+</button>
 
 <div class="status" id="status">
 Kamera belum diaktifkan.
 </div>
 
-<button id="ocrBtn" class="green" style="display:none" onclick="readPlate()">
+<button id="ocrBtn" class="green"
+style="display:none" onclick="readPlate()">
 BACA NOMOR POLISI
 </button>
 
 <label>HASIL NOMOR POLISI</label>
-<input id="plate" placeholder="Contoh: B 1828 HOR">
 
-<p>Periksa dan koreksi nomor polisi jika hasil pembacaan belum tepat.</p>
+<input id="plate" placeholder="Contoh: B 1828 HOR"
+autocomplete="off" spellcheck="false">
+
+<p>
+Periksa dan koreksi nomor polisi jika hasil pembacaan belum tepat.
+</p>
 
 <button id="sendBtn" onclick="sendToVVIS()">
 KIRIM KE VVIS
@@ -122,169 +148,511 @@ SISTEM IDENTIFIKASI KENDARAAN
 </div>
 
 <script>
-let stream=null;
-let fotoTersedia=false;
 
-const camera=document.getElementById("camera");
-const photo=document.getElementById("photo");
-const canvas=document.getElementById("canvas");
-const statusBox=document.getElementById("status");
+let stream = null;
+let fotoTersedia = false;
+let worker = null;
+
+const camera = document.getElementById("camera");
+const photo = document.getElementById("photo");
+const canvas = document.getElementById("canvas");
+const statusBox = document.getElementById("status");
 
 function status(teks){
-  statusBox.textContent=teks;
+  statusBox.textContent = teks;
 }
 
+
+/* =====================================
+   1. MEMBUKA KAMERA
+===================================== */
+
 async function startCamera(){
-  const btn=document.getElementById("startBtn");
-  btn.disabled=true;
-  btn.textContent="MEMBUKA KAMERA...";
+
+  const btn = document.getElementById("startBtn");
+
+  btn.disabled = true;
+  btn.textContent = "MEMBUKA KAMERA...";
 
   try{
-    stream=await navigator.mediaDevices.getUserMedia({
+
+    stream = await navigator.mediaDevices.getUserMedia({
       audio:false,
       video:{
         facingMode:{ideal:"environment"},
-        width:{ideal:1280},
-        height:{ideal:720}
+        width:{ideal:1920},
+        height:{ideal:1080}
       }
     });
 
-    camera.srcObject=stream;
+    camera.srcObject = stream;
+
     await camera.play();
 
-    camera.style.display="block";
-    document.getElementById("placeholder").style.display="none";
-    document.getElementById("guide").style.display="block";
+    camera.style.display = "block";
 
-    btn.style.display="none";
-    document.getElementById("captureBtn").style.display="block";
+    document.getElementById("placeholder").style.display = "none";
 
-    status("Kamera aktif. Arahkan kotak hijau ke nomor polisi.");
+    document.getElementById("guide").style.display = "block";
+
+    btn.style.display = "none";
+
+    document.getElementById("captureBtn").style.display = "block";
+
+    status("Kamera aktif. Posisikan seluruh plat nomor di dalam kotak hijau.");
+
   }catch(e){
-    status("Kamera gagal dibuka. Izinkan akses kamera pada Chrome. "+e.message);
-    btn.disabled=false;
-    btn.textContent="MULAI KAMERA";
+
+    status("Kamera gagal dibuka. Periksa izin kamera Chrome. " + e.message);
+
+    btn.disabled = false;
+    btn.textContent = "MULAI KAMERA";
+
   }
 }
 
+
+/* =====================================
+   2. AMBIL FOTO DAN POTONG AREA PLAT
+===================================== */
+
 function capturePhoto(){
+
   if(!camera.videoWidth){
     status("Kamera belum siap. Tunggu sebentar.");
     return;
   }
 
-  canvas.width=camera.videoWidth;
-  canvas.height=camera.videoHeight;
+  const w = camera.videoWidth;
+  const h = camera.videoHeight;
 
-  canvas.getContext("2d").drawImage(
-    camera,0,0,canvas.width,canvas.height
+  // Area pemotongan mengikuti kotak hijau.
+  const cropX = Math.round(w * 0.06);
+  const cropY = Math.round(h * 0.34);
+  const cropW = Math.round(w * 0.88);
+  const cropH = Math.round(h * 0.32);
+
+  canvas.width = cropW;
+  canvas.height = cropH;
+
+  const ctx = canvas.getContext("2d");
+
+  ctx.drawImage(
+    camera,
+    cropX,cropY,cropW,cropH,
+    0,0,cropW,cropH
   );
 
-  photo.src=canvas.toDataURL("image/jpeg",0.95);
-  photo.style.display="block";
-  camera.style.display="none";
+  photo.src = canvas.toDataURL("image/jpeg",0.98);
+
+  photo.style.display = "block";
+
+  camera.style.display = "none";
 
   stopCamera();
 
-  fotoTersedia=true;
+  fotoTersedia = true;
 
-  document.getElementById("guide").style.display="none";
-  document.getElementById("captureBtn").style.display="none";
-  document.getElementById("retakeBtn").style.display="block";
-  document.getElementById("ocrBtn").style.display="block";
+  document.getElementById("guide").style.display = "none";
 
-  status("Foto berhasil diambil. Tekan BACA NOMOR POLISI.");
+  document.getElementById("captureBtn").style.display = "none";
+
+  document.getElementById("retakeBtn").style.display = "block";
+
+  document.getElementById("ocrBtn").style.display = "block";
+
+  document.getElementById("plate").value = "";
+
+  status("Area plat berhasil dipotong. Tekan BACA NOMOR POLISI.");
+
 }
+
+
+/* =====================================
+   3. FOTO ULANG
+===================================== */
 
 function retakePhoto(){
-  fotoTersedia=false;
-  photo.style.display="none";
-  document.getElementById("retakeBtn").style.display="none";
-  document.getElementById("ocrBtn").style.display="none";
-  document.getElementById("startBtn").style.display="block";
-  document.getElementById("startBtn").disabled=false;
-  document.getElementById("startBtn").textContent="MULAI KAMERA";
-  document.getElementById("plate").value="";
-  document.getElementById("placeholder").style.display="block";
+
+  fotoTersedia = false;
+
+  photo.style.display = "none";
+
+  document.getElementById("retakeBtn").style.display = "none";
+
+  document.getElementById("ocrBtn").style.display = "none";
+
+  document.getElementById("startBtn").style.display = "block";
+
+  document.getElementById("startBtn").disabled = false;
+
+  document.getElementById("startBtn").textContent = "MULAI KAMERA";
+
+  document.getElementById("plate").value = "";
+
+  document.getElementById("placeholder").style.display = "block";
+
   status("Silakan ambil foto ulang.");
+
 }
 
+
+/* =====================================
+   4. PERSIAPAN GAMBAR UNTUK OCR
+===================================== */
+
+function prepareOCR(){
+
+  const source = canvas;
+
+  const scale = 3;
+
+  const variants = [];
+
+  const width = source.width * scale;
+  const height = source.height * scale;
+
+  const enlarged = document.createElement("canvas");
+
+  enlarged.width = width;
+  enlarged.height = height;
+
+  const ectx = enlarged.getContext("2d");
+
+  ectx.imageSmoothingEnabled = true;
+  ectx.imageSmoothingQuality = "high";
+
+  ectx.drawImage(source,0,0,width,height);
+
+  const original = ectx.getImageData(
+    0,0,width,height
+  );
+
+  const pixels = original.data;
+
+  // Grayscale dan peningkatan kontras.
+  for(let i=0;i<pixels.length;i+=4){
+
+    const gray =
+      0.299*pixels[i] +
+      0.587*pixels[i+1] +
+      0.114*pixels[i+2];
+
+    const contrast = Math.max(
+      0,
+      Math.min(255,(gray-128)*1.8+128)
+    );
+
+    pixels[i] = contrast;
+    pixels[i+1] = contrast;
+    pixels[i+2] = contrast;
+  }
+
+  const grayCanvas = document.createElement("canvas");
+
+  grayCanvas.width = width;
+  grayCanvas.height = height;
+
+  grayCanvas.getContext("2d").putImageData(
+    original,0,0
+  );
+
+  variants.push(grayCanvas);
+
+  // Dua variasi threshold untuk kondisi cahaya berbeda.
+  [145,175].forEach(threshold=>{
+
+    const result = document.createElement("canvas");
+
+    result.width = width;
+    result.height = height;
+
+    const rctx = result.getContext("2d");
+
+    const image = rctx.createImageData(width,height);
+
+    for(let i=0;i<pixels.length;i+=4){
+
+      const value = pixels[i] >= threshold ? 255 : 0;
+
+      image.data[i] = value;
+      image.data[i+1] = value;
+      image.data[i+2] = value;
+      image.data[i+3] = 255;
+    }
+
+    rctx.putImageData(image,0,0);
+
+    variants.push(result);
+
+  });
+
+  return variants;
+}
+
+
+/* =====================================
+   5. NORMALISASI PLAT INDONESIA
+===================================== */
+
+function normalizePlate(text){
+
+  let value = String(text || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g,"");
+
+  // Format umum:
+  // B 1828 HOR
+  // D 1234 ABC
+  // AB 1234 CD
+
+  const match = value.match(
+    /^([A-Z]{1,2})([0-9OQDILSZB]{1,4})([A-Z]{0,3})$/
+  );
+
+  if(!match) return null;
+
+  const prefix = match[1];
+
+  // Koreksi karakter ambigu pada bagian angka saja.
+  const number = match[2].replace(/[OQDILSZB]/g,char=>({
+
+    O:"0",
+    Q:"0",
+    D:"0",
+    I:"1",
+    L:"1",
+    S:"5",
+    Z:"2",
+    B:"8"
+
+  })[char]);
+
+  const suffix = match[3];
+
+  if(!/^\d{1,4}$/.test(number)){
+    return null;
+  }
+
+  return prefix + " " + number +
+    (suffix ? " " + suffix : "");
+
+}
+
+
+/* =====================================
+   6. PROSES OCR
+===================================== */
+
 async function readPlate(){
-  if(!fotoTersedia)return;
 
-  const btn=document.getElementById("ocrBtn");
-  btn.disabled=true;
-  btn.textContent="SEDANG MEMBACA...";
+  if(!fotoTersedia){
+    status("Silakan ambil foto terlebih dahulu.");
+    return;
+  }
 
-  status("Sedang membaca tulisan pada foto. Mohon tunggu...");
+  const btn = document.getElementById("ocrBtn");
+
+  btn.disabled = true;
+  btn.textContent = "SEDANG MEMBACA...";
+
+  const hasilOCR = [];
 
   try{
-    const hasil=await Tesseract.recognize(
-      photo.src,
+
+    status("Menyiapkan gambar plat nomor...");
+
+    const variants = prepareOCR();
+
+    status("Mengaktifkan mesin OCR. Tunggu proses pertama selesai...");
+
+    worker = await Tesseract.createWorker(
       "eng",
+      1,
       {
         logger:m=>{
-          if(m.status==="recognizing text"){
-            status("Pembacaan nomor polisi: "+
-              Math.round(m.progress*100)+"%");
+
+          if(m.status === "recognizing text"){
+
+            status(
+              "OCR sedang membaca gambar: " +
+              Math.round(m.progress*100) + "%"
+            );
+
           }
-        },
-        tessedit_pageseg_mode:7
+
+        }
       }
     );
 
-    const teks=hasil.data.text
-      .toUpperCase()
-      .replace(/[^A-Z0-9 ]/g," ")
-      .replace(/\s+/g," ")
-      .trim();
+    await worker.setParameters({
 
-    document.getElementById("plate").value=teks;
+      tessedit_char_whitelist:
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
 
-    if(teks){
-      status("Pembacaan selesai. Periksa hasilnya, lalu koreksi jika perlu.");
+      tessedit_pageseg_mode:"7"
+
+    });
+
+    // Membaca tiga variasi gambar.
+    for(let i=0;i<variants.length;i++){
+
+      status(
+        "Menganalisis gambar " +
+        (i+1) + " dari " + variants.length + "..."
+      );
+
+      const result = await worker.recognize(
+        variants[i]
+      );
+
+      const raw = result.data.text || "";
+
+      const confidence =
+        Number(result.data.confidence || 0);
+
+      const plate = normalizePlate(raw);
+
+      hasilOCR.push({
+
+        raw:raw,
+        plate:plate,
+        confidence:confidence
+
+      });
+
+    }
+
+    // Memilih hasil valid dengan confidence tertinggi.
+    const valid = hasilOCR
+      .filter(x=>x.plate)
+      .sort((a,b)=>b.confidence-a.confidence);
+
+    if(valid.length){
+
+      document.getElementById("plate").value =
+        valid[0].plate;
+
+      status(
+        "Plat berhasil dikenali: " +
+        valid[0].plate +
+        ". Periksa kembali sebelum dikirim."
+      );
+
     }else{
-      status("Tulisan belum terbaca. Silakan foto ulang atau ketik nomor polisi secara manual.");
+
+      // Jika format tidak dikenali, tampilkan hasil
+      // OCR mentah yang paling meyakinkan untuk koreksi.
+      const best = hasilOCR
+        .sort((a,b)=>b.confidence-a.confidence)[0];
+
+      document.getElementById("plate").value =
+        (best?.raw || "")
+          .toUpperCase()
+          .replace(/[^A-Z0-9 ]/g," ")
+          .replace(/\s+/g," ")
+          .trim();
+
+      status(
+        "Format plat belum dapat divalidasi. " +
+        "Silakan koreksi manual atau foto ulang."
+      );
+
     }
 
   }catch(e){
-    status("OCR gagal membaca foto. Silakan ketik nomor polisi secara manual.");
+
+    console.error("VVIS OCR:",e);
+
+    status(
+      "OCR gagal. Periksa koneksi internet atau ketik plat secara manual."
+    );
+
+  }finally{
+
+    if(worker){
+
+      try{
+        await worker.terminate();
+      }catch(e){}
+
+      worker = null;
+
+    }
+
+    btn.disabled = false;
+    btn.textContent = "BACA NOMOR POLISI";
+
   }
 
-  btn.disabled=false;
-  btn.textContent="BACA NOMOR POLISI";
 }
 
+
+/* =====================================
+   7. KIRIM HASIL KE VVIS UTAMA
+===================================== */
+
 function sendToVVIS(){
-  const plat=document.getElementById("plate").value.trim().toUpperCase();
+
+  const plat = document.getElementById("plate")
+    .value.trim().toUpperCase();
 
   if(!plat){
+
     status("Nomor polisi belum diisi.");
+
     return;
+
   }
 
   if(!window.opener || window.opener.closed){
-    status("Aplikasi VVIS utama tidak ditemukan. Buka kamera dari menu VVIS.");
+
+    status(
+      "Aplikasi VVIS utama tidak ditemukan. " +
+      "Buka kamera dari menu VVIS."
+    );
+
     return;
+
   }
 
   window.opener.postMessage({
+
     type:"VVIS_SCAN_RESULT",
+
     nomorPolisi:plat
+
   },"*");
 
-  status("Nomor polisi sudah dikirim ke aplikasi VVIS. Silakan kembali ke halaman utama.");
+  status(
+    "Nomor polisi sudah dikirim ke aplikasi VVIS. " +
+    "Silakan kembali ke halaman utama."
+  );
+
 }
 
+
+/* =====================================
+   8. MATIKAN KAMERA
+===================================== */
+
 function stopCamera(){
+
   if(stream){
+
     stream.getTracks().forEach(track=>track.stop());
-    stream=null;
+
+    stream = null;
+
   }
-  camera.srcObject=null;
+
+  camera.srcObject = null;
+
 }
 
 window.addEventListener("pagehide",stopCamera);
+
 </script>
+
 </body>
 </html>
